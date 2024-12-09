@@ -1,59 +1,65 @@
-import { createClient } from 'redis';
-import { promisify } from 'util';
+import { env } from 'process';
+import { MongoClient, ObjectId } from 'mongodb';
 
-/**
- * RedisHandler class for interacting with Redis.
- */
-class RedisHandler {
+// eslint-disable-next-line import/prefer-default-export
+export class DatabaseService {
   constructor() {
-    this.redisClient = createClient();
-    this.asyncGet = promisify(this.redisClient.get).bind(this.redisClient);
-
-    this.redisClient.on('error', (err) => {
-      console.error(`Failed to connect to Redis: ${err.message}`);
-    });
-
-    this.redisClient.on('ready', () => {
-      // console.info('Redis connection established successfully');
-    });
+    const dbHost = env.DB_HOST || '127.0.0.1';
+    const dbPort = env.DB_PORT || 27017;
+    const dbName = env.DB_DATABASE || 'files_manager';
+    this.mongoClient = new MongoClient(`mongodb://${dbHost}:${dbPort}/${dbName}`, { useUnifiedTopology: true });
+    this.mongoClient.connect();
   }
 
-  /**
-   * Verifies if Redis connection is active.
-   * @returns {boolean} Connection status.
-   */
   isAlive() {
-    return this.redisClient.connected;
+    return this.mongoClient.isConnected();
   }
 
-  /**
-   * Fetches a value associated with a key.
-   * @param {string} key - The key to retrieve.
-   * @returns {Promise<string>} The corresponding value.
-   */
-  async getValue(key) {
-    return this.asyncGet(key);
+  async countUsers() {
+    const database = this.mongoClient.db();
+    const usersCollection = database.collection('users');
+    return usersCollection.countDocuments();
   }
 
-  /**
-   * Stores a key-value pair with a time-to-live (TTL).
-   * @param {string} key - Key to store.
-   * @param {string} value - Value to associate with the key.
-   * @param {number} ttl - Time-to-live in seconds.
-   */
-  async setValue(key, value, ttl) {
-    this.redisClient.setex(key, ttl, value);
+  async countFiles() {
+    const database = this.mongoClient.db();
+    const filesCollection = database.collection('files');
+    return filesCollection.countDocuments();
   }
 
-  /**
-   * Removes a key from Redis storage.
-   * @param {string} key - The key to remove.
-   */
-  async removeKey(key) {
-    this.redisClient.del(key);
+  async findUserByEmail(email) {
+    const database = this.mongoClient.db();
+    const usersCollection = database.collection('users');
+    return usersCollection.findOne({ email });
+  }
+
+  async createUser(email, hashedPassword) {
+    const database = this.mongoClient.db();
+    const usersCollection = database.collection('users');
+    return usersCollection.insertOne({ email, hashedPassword });
+  }
+
+  async findUser(filters) {
+    const database = this.mongoClient.db();
+    const usersCollection = database.collection('users');
+    if (filters._id) {
+      filters._id = ObjectId(filters._id);
+    }
+    return usersCollection.findOne(filters);
+  }
+
+  async findFile(filters) {
+    const database = this.mongoClient.db();
+    const filesCollection = database.collection('files');
+    ['_id', 'userId', 'parentId'].forEach((field) => {
+      if (filters[field] && filters[field] !== '0') {
+        filters[field] = ObjectId(filters[field]);
+      }
+    });
+    return filesCollection.findOne(filters);
   }
 }
 
-const redisHandler = new RedisHandler();
+const databaseService = new DatabaseService();
 
-export default redisHandler;
+export default databaseService;
