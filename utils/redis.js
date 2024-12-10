@@ -1,78 +1,66 @@
-import { createClient } from 'redis';
+import { MongoClient } from 'mongodb';
+// eslint-disable-next-line no-unused-vars
+import Collection from 'mongodb/lib/collection';
+import envLoader from './env_loader';
 
 /**
- * Redis client manager class.
+ * MongoDB client handler.
  */
-class RedisClient {
+class DBClient {
   /**
-   * Creates a new RedisClient instance.
+   * Initializes a new DBClient instance.
    */
   constructor() {
-    this.client = createClient();
-    this.connected = false;
+    envLoader();
+    const host = process.env.DB_HOST || 'localhost';
+    const port = process.env.DB_PORT || 27017;
+    const dbName = process.env.DB_DATABASE || 'files_manager';
+    const connectionString = `mongodb://${host}:${port}/${dbName}`;
 
-    this.client.on('error', (err) => {
-      console.log(`Redis client not connected: ${err.message || err}`);
-      this.connected = false;
-    });
-
-    this.client.on('connect', () => {
-      this.connected = true;
-    });
+    this.client = new MongoClient(connectionString, { useUnifiedTopology: true });
+    this.client.connect();
   }
 
   /**
-   * Verifies if the client is connected to Redis.
+   * Checks if the client is connected to the MongoDB server.
    * @returns {boolean}
    */
   isAlive() {
-    return this.connected;
+    return this.client.isConnected();
   }
 
   /**
-   * Retrieves a value for a given key.
-   * @param {string} key The key to retrieve the value for.
-   * @returns {Promise<string | null>}
+   * Retrieves the count of users in the database.
+   * @returns {Promise<Number>}
    */
-  async get(key) {
-    return new Promise((resolve, reject) => {
-      this.client.get(key, (err, result) => {
-        if (err) reject(err);
-        resolve(result);
-      });
-    });
+  async countUsers() {
+    return this.client.db().collection('users').countDocuments();
   }
 
   /**
-   * Sets a key-value pair with an expiration time.
-   * @param {string} key The key to set.
-   * @param {string | number | boolean} value The value to set.
-   * @param {number} ttl The time-to-live in seconds.
-   * @returns {Promise<void>}
+   * Retrieves the count of files in the database.
+   * @returns {Promise<Number>}
    */
-  async set(key, value, ttl) {
-    return new Promise((resolve, reject) => {
-      this.client.setex(key, ttl, value, (err) => {
-        if (err) reject(err);
-        resolve();
-      });
-    });
+  async countFiles() {
+    return this.client.db().collection('files').countDocuments();
   }
 
   /**
-   * Deletes a key.
-   * @param {string} key The key to delete.
-   * @returns {Promise<void>}
+   * Gets the 'users' collection reference.
+   * @returns {Promise<Collection>}
    */
-  async del(key) {
-    return new Promise((resolve, reject) => {
-      this.client.del(key, (err) => {
-        if (err) reject(err);
-        resolve();
-      });
-    });
+  async getUsersCollection() {
+    return this.client.db().collection('users');
+  }
+
+  /**
+   * Gets the 'files' collection reference.
+   * @returns {Promise<Collection>}
+   */
+  async getFilesCollection() {
+    return this.client.db().collection('files');
   }
 }
 
-export const redisClient = new RedisClient();
-export default redisClient;
+export const dbClient = new DBClient();
+export default dbClient;
