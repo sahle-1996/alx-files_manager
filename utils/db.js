@@ -1,65 +1,66 @@
-import { env } from 'process';
-import { MongoClient, ObjectId } from 'mongodb';
+import { MongoClient } from 'mongodb';
+// eslint-disable-next-line no-unused-vars
+import Collection from 'mongodb/lib/collection';
+import config from './env_loader';
 
-// eslint-disable-next-line import/prefer-default-export
-export class DatabaseService {
+/**
+ * MongoDB connection handler.
+ */
+class MongoDBClient {
+  /**
+   * Initializes a new MongoDBClient instance.
+   */
   constructor() {
-    const dbHost = env.DB_HOST || '127.0.0.1';
-    const dbPort = env.DB_PORT || 27017;
-    const dbName = env.DB_DATABASE || 'files_manager';
-    this.mongoClient = new MongoClient(`mongodb://${dbHost}:${dbPort}/${dbName}`, { useUnifiedTopology: true });
-    this.mongoClient.connect();
+    config();
+    const dbHost = process.env.DB_HOST || 'localhost';
+    const dbPort = process.env.DB_PORT || 27017;
+    const dbName = process.env.DB_DATABASE || 'files_manager';
+    const connectionUrl = `mongodb://${dbHost}:${dbPort}/${dbName}`;
+
+    this.client = new MongoClient(connectionUrl, { useUnifiedTopology: true });
+    this.client.connect();
   }
 
-  isAlive() {
-    return this.mongoClient.isConnected();
+  /**
+   * Verifies if the connection to MongoDB is active.
+   * @returns {boolean}
+   */
+  isConnected() {
+    return this.client.isConnected();
   }
 
+  /**
+   * Fetches the total count of users in the database.
+   * @returns {Promise<number>}
+   */
   async countUsers() {
-    const database = this.mongoClient.db();
-    const usersCollection = database.collection('users');
-    return usersCollection.countDocuments();
+    return this.client.db().collection('users').countDocuments();
   }
 
+  /**
+   * Fetches the total count of files in the database.
+   * @returns {Promise<number>}
+   */
   async countFiles() {
-    const database = this.mongoClient.db();
-    const filesCollection = database.collection('files');
-    return filesCollection.countDocuments();
+    return this.client.db().collection('files').countDocuments();
   }
 
-  async findUserByEmail(email) {
-    const database = this.mongoClient.db();
-    const usersCollection = database.collection('users');
-    return usersCollection.findOne({ email });
+  /**
+   * Retrieves a reference to the 'users' collection.
+   * @returns {Promise<Collection>}
+   */
+  async getUsersCollection() {
+    return this.client.db().collection('users');
   }
 
-  async createUser(email, hashedPassword) {
-    const database = this.mongoClient.db();
-    const usersCollection = database.collection('users');
-    return usersCollection.insertOne({ email, hashedPassword });
-  }
-
-  async findUser(filters) {
-    const database = this.mongoClient.db();
-    const usersCollection = database.collection('users');
-    if (filters._id) {
-      filters._id = ObjectId(filters._id);
-    }
-    return usersCollection.findOne(filters);
-  }
-
-  async findFile(filters) {
-    const database = this.mongoClient.db();
-    const filesCollection = database.collection('files');
-    ['_id', 'userId', 'parentId'].forEach((field) => {
-      if (filters[field] && filters[field] !== '0') {
-        filters[field] = ObjectId(filters[field]);
-      }
-    });
-    return filesCollection.findOne(filters);
+  /**
+   * Retrieves a reference to the 'files' collection.
+   * @returns {Promise<Collection>}
+   */
+  async getFilesCollection() {
+    return this.client.db().collection('files');
   }
 }
 
-const databaseService = new DatabaseService();
-
-export default databaseService;
+export const mongoDBClient = new MongoDBClient();
+export default mongoDBClient;
