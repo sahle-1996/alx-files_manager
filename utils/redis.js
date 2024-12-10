@@ -1,32 +1,55 @@
-const redis = require('redis');
-const { promisify } = require('util');
+import redis from 'redis';
 
-class RedisService {
+class CacheService {
   constructor() {
-    this.connection = redis.createClient();
-    this.fetchAsync = promisify(this.connection.get).bind(this.connection);
-    this.connection.on('error', (err) => {
-      console.log(`Error connecting to Redis server: ${err.message}`);
+    this.cache = redis.createClient();
+
+    this.cache.on('error', (err) => {
+      console.error(`Cache service error: ${err}`);
     });
   }
 
-  isActive() {
-    return this.connection.connected;
+  isConnected() {
+    return this.cache.connected;
   }
 
-  async retrieve(key) {
-    return this.fetchAsync(key);
+  async fetch(key) {
+    return new Promise((resolve, reject) => {
+      this.cache.get(key, (err, data) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(data);
+        }
+      });
+    });
   }
 
-  async store(key, value, ttl) {
-    this.connection.setex(key, ttl, value);
+  async store(key, value, ttlInSeconds) {
+    return new Promise((resolve, reject) => {
+      this.cache.setex(key, ttlInSeconds, value, (err, result) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      });
+    });
   }
 
   async remove(key) {
-    this.connection.del(key);
+    return new Promise((resolve, reject) => {
+      this.cache.del(key, (err, result) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      });
+    });
   }
 }
 
-const redisService = new RedisService();
+const cacheService = new CacheService();
 
-module.exports = redisService;
+export default cacheService;
