@@ -1,45 +1,44 @@
 import { createClient } from 'redis';
 
 /**
- * Manages Redis connections and operations.
+ * Handles Redis operations and connection management.
  */
-class RedisManager {
+class RedisService {
   /**
-   * Sets up the RedisManager with the Redis client.
+   * Initializes a new Redis client and sets up event listeners.
    */
   constructor() {
     this.client = createClient();
     this.isConnected = false;
 
-    // Event listener for connection errors
-    this.client.on('error', (err) => {
-      console.log(`Redis connection error: ${err.message}`);
+    this.client.on('error', (error) => {
+      console.error(`Redis error: ${error.message || error.toString()}`);
+      this.isConnected = false;
     });
 
-    // Event listener for successful connection
     this.client.on('connect', () => {
       this.isConnected = true;
     });
   }
 
   /**
-   * Checks if the Redis client is connected.
+   * Verifies if the Redis client is successfully connected to the server.
    * @returns {boolean}
    */
-  isConnectedToServer() {
+  checkConnection() {
     return this.isConnected;
   }
 
   /**
-   * Fetches the value associated with a key from Redis.
-   * @param {String} key The key to fetch.
+   * Retrieves the value associated with a given key.
+   * @param {String} key The key to retrieve the value for.
    * @returns {Promise<String | null>}
    */
-  async fetch(key) {
+  async fetchValue(key) {
     return new Promise((resolve, reject) => {
-      this.client.get(key, (err, value) => {
-        if (err) reject(err);
-        resolve(value);
+      this.client.get(key, (error, result) => {
+        if (error) reject(error);
+        resolve(result);
       });
     });
   }
@@ -47,33 +46,33 @@ class RedisManager {
   /**
    * Saves a key-value pair in Redis with an expiration time.
    * @param {String} key The key to store.
-   * @param {String | Number | Boolean} value The value to store.
-   * @param {Number} ttl Time to live in seconds.
+   * @param {String | Number | Boolean} value The value to associate with the key.
+   * @param {Number} ttl Time to live in seconds for the key.
    * @returns {Promise<void>}
    */
-  async save(key, value, ttl) {
+  async saveValue(key, value, ttl) {
     return new Promise((resolve, reject) => {
-      this.client.setex(key, ttl, value, (err) => {
-        if (err) reject(err);
+      this.client.setex(key, ttl, value, (error) => {
+        if (error) reject(error);
         resolve();
       });
     });
   }
 
   /**
-   * Removes a key-value pair from Redis.
-   * @param {String} key The key to remove.
+   * Deletes a key-value pair from Redis.
+   * @param {String} key The key to remove from Redis.
    * @returns {Promise<void>}
    */
-  async remove(key) {
+  async removeKey(key) {
     return new Promise((resolve, reject) => {
-      this.client.del(key, (err) => {
-        if (err) reject(err);
+      this.client.del(key, (error) => {
+        if (error) reject(error);
         resolve();
       });
     });
   }
 }
 
-export const redisManager = new RedisManager();
-export default redisManager;
+export const redisService = new RedisService();
+export default redisService;
