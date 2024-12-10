@@ -1,63 +1,75 @@
-import { promisify } from 'util';
 import { createClient } from 'redis';
 
 /**
- * Represents a Redis client.
+ * Class to manage Redis client operations.
  */
-class RedisClient {
+class RedisHandler {
   /**
-   * Creates a new RedisClient instance.
+   * Initializes the RedisHandler instance.
    */
   constructor() {
     this.client = createClient();
-    this.isClientConnected = true;
+    this.connectionStatus = false;
     this.client.on('error', (err) => {
-      console.error('Redis client failed to connect:', err.message || err.toString());
-      this.isClientConnected = false;
+      console.error('Redis connection error:', err.message || err);
     });
     this.client.on('connect', () => {
-      this.isClientConnected = true;
+      this.connectionStatus = true;
     });
   }
 
   /**
-   * Checks if this client's connection to the Redis server is active.
+   * Returns whether the Redis client is connected.
    * @returns {boolean}
    */
-  isAlive() {
-    return this.isClientConnected;
+  isConnected() {
+    return this.connectionStatus;
   }
 
   /**
-   * Retrieves the value of a given key.
-   * @param {String} key The key of the item to retrieve.
-   * @returns {String | Object}
+   * Retrieves the value associated with a given key.
+   * @param {String} key The key to fetch the value for.
+   * @returns {Promise<String | Object>}
    */
-  async get(key) {
-    return promisify(this.client.GET).bind(this.client)(key);
+  async fetch(key) {
+    return new Promise((resolve, reject) => {
+      this.client.get(key, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      });
+    });
   }
 
   /**
-   * Stores a key and its value along with an expiration time.
-   * @param {String} key The key of the item to store.
-   * @param {String | Number | Boolean} value The item to store.
-   * @param {Number} duration The expiration time of the item in seconds.
+   * Sets a key-value pair in Redis with an expiration time.
+   * @param {String} key The key to store.
+   * @param {String | Number | Boolean} value The value to store.
+   * @param {Number} ttl The time-to-live in seconds.
    * @returns {Promise<void>}
    */
-  async set(key, value, duration) {
-    await promisify(this.client.SETEX)
-      .bind(this.client)(key, duration, value);
+  async store(key, value, ttl) {
+    return new Promise((resolve, reject) => {
+      this.client.setex(key, ttl, value, (err) => {
+        if (err) reject(err);
+        resolve();
+      });
+    });
   }
 
   /**
-   * Removes the value of a given key.
-   * @param {String} key The key of the item to remove.
+   * Deletes the value associated with a specific key.
+   * @param {String} key The key to delete.
    * @returns {Promise<void>}
    */
-  async del(key) {
-    await promisify(this.client.DEL).bind(this.client)(key);
+  async remove(key) {
+    return new Promise((resolve, reject) => {
+      this.client.del(key, (err) => {
+        if (err) reject(err);
+        resolve();
+      });
+    });
   }
 }
 
-export const redisClient = new RedisClient();
-export default redisClient;
+export const redisHandler = new RedisHandler();
+export default redisHandler;
