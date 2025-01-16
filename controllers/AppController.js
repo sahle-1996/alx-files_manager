@@ -2,18 +2,30 @@ import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
 
 class AppController {
-  static async fetchStatus(req, res) {
-    const isRedisConnected = redisClient.isAlive();
-    const isDbConnected = dbClient.isAlive();
-    res.set('Content-Type', 'application/json');
-    res.status(200).json({ redis: isRedisConnected, db: isDbConnected }).end();
+  /**
+   * Check the health of Redis and MongoDB connections.
+   * @param {Object} request - The HTTP request object.
+   * @param {Object} response - The HTTP response object.
+   */
+  static getStatus(request, response) {
+    const redisStatus = redisClient.isAlive();
+    const dbStatus = dbClient.isAlive();
+    response.status(200).json({ redis: redisStatus, db: dbStatus });
   }
 
-  static async fetchStats(req, res) {
-    const totalUsers = await dbClient.nbUsers();
-    const totalFiles = await dbClient.nbFiles();
-    res.set('Content-Type', 'application/json');
-    res.status(200).json({ users: totalUsers, files: totalFiles }).end();
+  /**
+   * Retrieve statistics for users and files from the database.
+   * @param {Object} request - The HTTP request object.
+   * @param {Object} response - The HTTP response object.
+   */
+  static async getStats(request, response) {
+    try {
+      const userCount = await dbClient.nbUsers();
+      const fileCount = await dbClient.nbFiles();
+      response.status(200).json({ users: userCount, files: fileCount });
+    } catch (error) {
+      response.status(500).json({ error: 'Unable to retrieve statistics' });
+    }
   }
 }
 
