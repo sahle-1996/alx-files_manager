@@ -1,45 +1,56 @@
-import { Router } from 'express';
-
+import express from 'express';
 import AppController from '../controllers/AppController';
 import UsersController from '../controllers/UsersController';
 import AuthController from '../controllers/AuthController';
 import FilesController from '../controllers/FilesController';
-import UtilController from '../controllers/UtilController';
 
-const apiRouter = Router();
+function initializeRoutes(app) {
+  const router = express.Router();
+  app.use('/', router);
 
-apiRouter.use((req, res, next) => {
-  const authPaths = ['/connect'];
-  if (!authPaths.includes(req.path)) {
-    next();
-  } else if (!req.headers.authorization) {
-    res.status(401).json({ error: 'Unauthorized' }).end();
-  } else {
-    next();
-  }
-});
+  // Application Controller Endpoints
 
-apiRouter.use((req, res, next) => {
-  const tokenPaths = ['/disconnect', '/users/me', '/files'];
-  if (!tokenPaths.includes(req.path)) {
-    next();
-  } else if (!req.headers['x-token']) {
-    res.status(401).json({ error: 'Unauthorized' }).end();
-  } else {
-    next();
-  }
-});
+  // Returns Redis and DB connection status
+  router.get('/status', AppController.getStatus);
 
-apiRouter.get('/status', AppController.getStatus);
-apiRouter.get('/stats', AppController.getStats);
-apiRouter.post('/users', UsersController.postNew);
-apiRouter.get('/connect', AuthController.getConnect);
-apiRouter.get('/disconnect', AuthController.getDisconnect);
-apiRouter.post('/files', FilesController.postUpload);
-apiRouter.get('/files/:id', FilesController.getShow);
-apiRouter.get('/files', FilesController.getIndex);
+  // Returns the count of users and files in the database
+  router.get('/stats', AppController.getStats);
 
-apiRouter.put('/files/:id/publish', UtilController.token, FilesController.putPublish);
-apiRouter.put('/files/:id/unpublish', UtilController.token, FilesController.putUnpublish);
+  // User Controller Endpoints
 
-export default apiRouter;
+  // Creates a new user in the database
+  router.post('/users', UsersController.postNew);
+
+  // Retrieves the currently authenticated user
+  router.get('/users/me', UsersController.getMe);
+
+  // Authentication Controller Endpoints
+
+  // Logs in the user and provides an authentication token
+  router.get('/connect', AuthController.getConnect);
+
+  // Logs out the user based on the provided token
+  router.get('/disconnect', AuthController.getDisconnect);
+
+  // File Controller Endpoints
+
+  // Uploads a new file to the database and storage
+  router.post('/files', FilesController.postUpload);
+
+  // Retrieves file metadata by ID
+  router.get('/files/:id', FilesController.getShow);
+
+  // Lists all files for a specific user with pagination
+  router.get('/files', FilesController.getIndex);
+
+  // Publishes a file by setting its isPublic attribute to true
+  router.put('/files/:id/publish', FilesController.putPublish);
+
+  // Unpublishes a file by setting its isPublic attribute to false
+  router.put('/files/:id/unpublish', FilesController.putUnpublish);
+
+  // Retrieves the content of a file by ID
+  router.get('/files/:id/data', FilesController.getFile);
+}
+
+export default initializeRoutes;

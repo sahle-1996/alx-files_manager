@@ -1,16 +1,32 @@
 import express from 'express';
-import { env } from 'process';
+import setupRoutes from './routes/index';
 
-const routes = require('./routes/index');
+/**
+ * Backend project summary:
+ * - Authentication using tokens
+ * - Integration with NodeJS, MongoDB, and Redis
+ * - Pagination and background processing
+ * - Core functionalities include:
+ *   - User authentication
+ *   - Listing files
+ *   - Uploading files
+ *   - Modifying file permissions
+ *   - Viewing files
+ *   - Generating image thumbnails
+ */
 
-const server = express();
-const serverPort = env.PORT || 5000;
+const app = express();
+const port = process.env.PORT || 5000;
 
-server.use(express.json());
-server.use(routes);
+// Middleware to parse JSON requests
+app.use(express.json());
 
-server.listen(serverPort, '127.0.0.1', () => {
-  console.log(`Server running on http://127.0.0.1:${serverPort}`);
+// Initialize all application routes
+setupRoutes(app);
+
+// Start the server
+app.listen(port, () => {
+  console.log(`Express server is up and running on port ${port}`);
 });
 
-export default server;
+export default app;
