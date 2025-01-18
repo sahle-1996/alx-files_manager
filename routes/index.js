@@ -1,56 +1,39 @@
 import express from 'express';
-import AppController from '../controllers/AppController';
-import UsersController from '../controllers/UsersController';
-import AuthController from '../controllers/AuthController';
-import FilesController from '../controllers/FilesController';
+import { getStatus, getStats } from '../controllers/AppController';
+import { postNew as createUser, getMe as getUserProfile } from '../controllers/UsersController';
+import { getConnect as login, getDisconnect as logout } from '../controllers/AuthController';
+import {
+  postUpload as uploadFile,
+  getShow as fetchFile,
+  getIndex as listFiles,
+  putPublish as publishFile,
+  putUnpublish as unpublishFile,
+  getFile as getFileContent,
+} from '../controllers/FilesController';
 
 function initializeRoutes(app) {
   const router = express.Router();
   app.use('/', router);
 
-  // Application Controller Endpoints
+  // App Controller Routes
+  router.get('/status', getStatus); // Check Redis and DB status
+  router.get('/stats', getStats);   // Get user and file stats
 
-  // Returns Redis and DB connection status
-  router.get('/status', AppController.getStatus);
+  // Users Controller Routes
+  router.post('/users', createUser);      // Add a new user to DB
+  router.get('/users/me', getUserProfile); // Fetch user profile based on token
 
-  // Returns the count of users and files in the database
-  router.get('/stats', AppController.getStats);
+  // Auth Controller Routes
+  router.get('/connect', login);   // Authenticate user and provide token
+  router.get('/disconnect', logout); // Sign out user based on token
 
-  // User Controller Endpoints
-
-  // Creates a new user in the database
-  router.post('/users', UsersController.postNew);
-
-  // Retrieves the currently authenticated user
-  router.get('/users/me', UsersController.getMe);
-
-  // Authentication Controller Endpoints
-
-  // Logs in the user and provides an authentication token
-  router.get('/connect', AuthController.getConnect);
-
-  // Logs out the user based on the provided token
-  router.get('/disconnect', AuthController.getDisconnect);
-
-  // File Controller Endpoints
-
-  // Uploads a new file to the database and storage
-  router.post('/files', FilesController.postUpload);
-
-  // Retrieves file metadata by ID
-  router.get('/files/:id', FilesController.getShow);
-
-  // Lists all files for a specific user with pagination
-  router.get('/files', FilesController.getIndex);
-
-  // Publishes a file by setting its isPublic attribute to true
-  router.put('/files/:id/publish', FilesController.putPublish);
-
-  // Unpublishes a file by setting its isPublic attribute to false
-  router.put('/files/:id/unpublish', FilesController.putUnpublish);
-
-  // Retrieves the content of a file by ID
-  router.get('/files/:id/data', FilesController.getFile);
+  // Files Controller Routes
+  router.post('/files', uploadFile);                // Upload new file
+  router.get('/files/:id', fetchFile);              // Fetch file by ID
+  router.get('/files', listFiles);                  // List all files with pagination
+  router.put('/files/:id/publish', publishFile);    // Mark file as public
+  router.put('/files/:id/unpublish', unpublishFile);// Mark file as private
+  router.get('/files/:id/data', getFileContent);    // Get file content by ID
 }
 
 export default initializeRoutes;
