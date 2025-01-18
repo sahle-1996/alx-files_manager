@@ -1,31 +1,32 @@
-import Utility from './UtilController';
-import dbClient from '../utils/db';
+import { Router } from 'express';
+import AppController from '../controllers/AppController';
+import UsersController from '../controllers/UsersController';
+import AuthController from '../controllers/AuthController';
+import FilesController from '../controllers/FilesController';
 
-export default class UsersController {
-  static async createUser(req, res) {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      const missingField = !email ? 'email' : 'password';
-      res.status(400).json({ error: `Missing ${missingField}` }).end();
-    } else if (await dbClient.userExists(email)) {
-      res.status(400).json({ error: 'Already exists' }).end();
-    } else {
-      try {
-        const hashedPassword = Utility.SHA1(password);
-        const result = await dbClient.newUser(email, hashedPassword);
-        const { _id, email: newEmail } = result.ops[0];
-        res.status(201).json({ id: _id, email: newEmail }).end();
-      } catch (error) {
-        res.status(400).json({ error: error.message }).end();
-      }
-    }
-  }
+function setupRoutes(app) {
+  const router = Router();
+  app.use('/', router);
 
-  static async fetchUser(req, res) {
-    const { usr } = req;
-    const user = { ...usr, id: usr._id };
-    delete user._id;
-    delete user.password;
-    res.status(200).json(user).end();
-  }
+  // Health Check Endpoints
+  router.get('/status', AppController.getStatus); // Redis and DB health check
+  router.get('/stats', AppController.getStats);   // Retrieve statistics
+
+  // User Management Endpoints
+  router.post('/users', UsersController.postNew); // Register a new user
+  router.get('/users/me', UsersController.getMe); // Get authenticated user details
+
+  // Authentication Endpoints
+  router.get('/connect', AuthController.getConnect);   // User login
+  router.get('/disconnect', AuthController.getDisconnect); // User logout
+
+  // File Operations Endpoints
+  router.post('/files', FilesController.postUpload);                // Upload file
+  router.get('/files/:id', FilesController.getShow);                // Retrieve file by ID
+  router.get('/files', FilesController.getIndex);                   // List all files with pagination
+  router.put('/files/:id/publish', FilesController.putPublish);     // Make file public
+  router.put('/files/:id/unpublish', FilesController.putUnpublish); // Make file private
+  router.get('/files/:id/data', FilesController.getFile);           // Get file content by ID
 }
+
+export default setupRoutes;
